@@ -139,6 +139,47 @@ class SmarthomeBackendApplicationTests {
     }
 
     @Test
+    void changingPasswordRequiresCurrentPasswordAndStoresNewPasswordHashed() throws Exception {
+        String email = uniqueEmail();
+        String token = register(email);
+
+        mockMvc.perform(post("/api/profile/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"wrong-password","newPassword":"new-secure-password"}
+                                """))
+                .andExpect(status().isBadRequest());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                passwordEncoder.matches("secure-password", users.findByEmailIgnoreCase(email).orElseThrow().getPassword()));
+
+        mockMvc.perform(post("/api/profile/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"secure-password","newPassword":"new-secure-password"}
+                                """))
+                .andExpect(status().isNoContent());
+
+        User updatedUser = users.findByEmailIgnoreCase(email).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertNotEquals("new-secure-password", updatedUser.getPassword());
+        org.junit.jupiter.api.Assertions.assertTrue(passwordEncoder.matches(
+                "new-secure-password", updatedUser.getPassword()));
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"new-secure-password"}
+                                """.formatted(email)))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"secure-password"}
+                                """.formatted(email)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void demotedAdministratorLosesAdminAccessWithoutLoggingInAgain() throws Exception {
         User firstAdmin = saveUser(uniqueEmail(), "ADMIN");
         User secondAdmin = saveUser(uniqueEmail(), "ADMIN");

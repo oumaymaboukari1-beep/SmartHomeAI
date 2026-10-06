@@ -22,6 +22,9 @@ export class ApiService {
   updateProfile(profile: Pick<User, 'firstname' | 'lastname' | 'email'>): Observable<AuthResponse> {
     return this.http.put<AuthResponse>(`${API}/profile`, profile);
   }
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${API}/profile/password`, { currentPassword, newPassword });
+  }
   getDashboard(): Observable<DashboardSummary> { return this.http.get<DashboardSummary>(`${API}/dashboard`); }
   getDevices(): Observable<Device[]> { return this.http.get<Device[]>(`${API}/devices`); }
   addDevice(device: Pick<Device, 'name' | 'type' | 'location' | 'active'>): Observable<Device> {

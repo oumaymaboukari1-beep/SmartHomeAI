@@ -29,6 +29,7 @@ export class HomePage implements OnInit {
   forecast: Forecast | null = null;
   dailyTotals: DailyTotal[] = [];
   errorMessage = '';
+  successMessage = '';
   saving = false;
 
   deviceName = '';
@@ -39,6 +40,9 @@ export class HomePage implements OnInit {
   profileFirstname = '';
   profileLastname = '';
   profileEmail = '';
+  currentPassword = '';
+  newPassword = '';
+  confirmNewPassword = '';
 
   constructor(private readonly api: ApiService, readonly auth: AuthService) {
     this.user = auth.user;
@@ -174,6 +178,8 @@ export class HomePage implements OnInit {
   }
 
   saveProfile(): void {
+    this.errorMessage = '';
+    this.successMessage = '';
     this.saving = true;
     this.api.updateProfile({
       firstname: this.profileFirstname,
@@ -183,9 +189,32 @@ export class HomePage implements OnInit {
       next: response => {
         this.auth.save(response);
         this.user = response.user;
+        this.successMessage = 'Profil mis à jour.';
       },
       error: error => this.showError(error),
     });
+  }
+
+  changePassword(): void {
+    this.errorMessage = '';
+    this.successMessage = '';
+    if (this.newPassword !== this.confirmNewPassword) {
+      this.errorMessage = 'La confirmation ne correspond pas au nouveau mot de passe.';
+      return;
+    }
+    if (this.saving) return;
+
+    this.saving = true;
+    this.api.changePassword(this.currentPassword, this.newPassword)
+      .pipe(finalize(() => { this.saving = false; })).subscribe({
+        next: () => {
+          this.currentPassword = '';
+          this.newPassword = '';
+          this.confirmNewPassword = '';
+          this.successMessage = 'Mot de passe modifié avec succès.';
+        },
+        error: error => this.showError(error),
+      });
   }
 
   changeRole(user: AdminUser, role: User['role']): void {

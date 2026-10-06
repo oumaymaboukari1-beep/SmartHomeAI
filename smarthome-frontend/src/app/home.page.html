@@ -21,6 +21,7 @@
 <ion-content>
   <main class="page-wrap">
     <ion-note color="danger" *ngIf="errorMessage"><p>{{ errorMessage }}</p></ion-note>
+    <ion-note color="success" *ngIf="successMessage"><p>{{ successMessage }}</p></ion-note>
 
     <section *ngIf="section === 'overview'">
       <p class="eyebrow">TABLEAU DE BORD</p>
@@ -156,6 +157,21 @@
             <ion-input label="Nom" labelPlacement="stacked" name="profileLastname" [(ngModel)]="profileLastname" required></ion-input>
             <ion-input type="email" label="Adresse e-mail" labelPlacement="stacked" name="profileEmail" [(ngModel)]="profileEmail" required></ion-input>
             <ion-button type="submit" [disabled]="saving">Enregistrer les modifications</ion-button>
+          </form>
+        </ion-card-content>
+      </ion-card>
+      <ion-card>
+        <ion-card-header><ion-card-title>Sécurité du compte</ion-card-title></ion-card-header>
+        <ion-card-content>
+          <form class="profile-form" (ngSubmit)="changePassword()">
+            <ion-input type="password" label="Mot de passe actuel" labelPlacement="stacked" name="currentPassword"
+              [(ngModel)]="currentPassword" autocomplete="current-password" required></ion-input>
+            <ion-input type="password" label="Nouveau mot de passe" labelPlacement="stacked" name="newPassword"
+              [(ngModel)]="newPassword" autocomplete="new-password" minlength="8" maxlength="72" required></ion-input>
+            <ion-input type="password" label="Confirmer le nouveau mot de passe" labelPlacement="stacked"
+              name="confirmNewPassword" [(ngModel)]="confirmNewPassword" autocomplete="new-password"
+              minlength="8" maxlength="72" required></ion-input>
+            <ion-button type="submit" [disabled]="saving">Modifier le mot de passe</ion-button>
           </form>
         </ion-card-content>
       </ion-card>
