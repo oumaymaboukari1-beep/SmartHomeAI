@@ -87,9 +87,15 @@ class SmarthomeBackendApplicationTests {
         long deviceId = objectMapper.readTree(deviceResponse.getResponse().getContentAsString())
                 .get("id").asLong();
 
+        mockMvc.perform(get("/api/devices").header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Réfrigérateur"));
         mockMvc.perform(get("/api/devices").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+        mockMvc.perform(get("/api/devices"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/devices/{id}", deviceId)
                         .header("Authorization", "Bearer " + otherToken)
                         .contentType(MediaType.APPLICATION_JSON)

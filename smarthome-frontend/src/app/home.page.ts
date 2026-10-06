@@ -31,6 +31,7 @@ export class HomePage implements OnInit {
   errorMessage = '';
   successMessage = '';
   saving = false;
+  loadingDevices = false;
 
   deviceName = '';
   deviceType = 'Autre';
@@ -62,13 +63,7 @@ export class HomePage implements OnInit {
       next: value => { this.summary = value; },
       error: error => this.showError(error),
     });
-    this.api.getDevices().subscribe({
-      next: value => {
-        this.devices = value;
-        if (this.readingDeviceId === null && value.length) this.readingDeviceId = value[0].id;
-      },
-      error: error => this.showError(error),
-    });
+    this.refreshDevices();
     this.api.getHistory(30).subscribe({
       next: value => {
         this.readings = value;
@@ -89,12 +84,26 @@ export class HomePage implements OnInit {
   navigate(section: Section): void {
     this.section = section;
     this.errorMessage = '';
+    if (section === 'devices') this.refreshDevices();
     if (section === 'admin' && this.user?.role === 'ADMIN') {
       this.api.getUsers().subscribe({
         next: users => { this.adminUsers = users; },
         error: error => this.showError(error),
       });
     }
+  }
+
+  refreshDevices(): void {
+    this.loadingDevices = true;
+    this.api.getDevices().pipe(finalize(() => { this.loadingDevices = false; })).subscribe({
+      next: value => {
+        this.devices = value;
+        if (!value.some(device => device.id === this.readingDeviceId)) {
+          this.readingDeviceId = value[0]?.id ?? null;
+        }
+      },
+      error: error => this.showError(error),
+    });
   }
 
   onSectionChange(event: CustomEvent<{ value?: string | number }>): void {

@@ -47,6 +47,10 @@
 
     <section *ngIf="section === 'devices'">
       <h1 class="section-title">Mes appareils</h1>
+      <p class="muted">{{ devices.length }} appareil(s) enregistré(s) dans votre foyer.</p>
+      <ion-button fill="outline" (click)="refreshDevices()" [disabled]="loadingDevices">
+        {{ loadingDevices ? 'Actualisation…' : 'Actualiser la liste' }}
+      </ion-button>
       <ion-card>
         <ion-card-header><ion-card-title>Ajouter un appareil</ion-card-title></ion-card-header>
         <ion-card-content>
