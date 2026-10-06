@@ -1,0 +1,179 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>SmartHomeAI</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="auth.logout()">{{ user?.firstname }} · Déconnexion</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment [value]="section" (ionChange)="onSectionChange($event)">
+      <ion-segment-button value="overview"><ion-label>Vue générale</ion-label></ion-segment-button>
+      <ion-segment-button value="devices"><ion-label>Appareils</ion-label></ion-segment-button>
+      <ion-segment-button value="history"><ion-label>Consommation</ion-label></ion-segment-button>
+      <ion-segment-button value="alerts"><ion-label>Alertes</ion-label></ion-segment-button>
+      <ion-segment-button value="insights"><ion-label>Prévisions</ion-label></ion-segment-button>
+      <ion-segment-button value="profile"><ion-label>Profil</ion-label></ion-segment-button>
+      <ion-segment-button *ngIf="user?.role === 'ADMIN'" value="admin"><ion-label>Administration</ion-label></ion-segment-button>
+    </ion-segment>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="page-wrap">
+    <ion-note color="danger" *ngIf="errorMessage"><p>{{ errorMessage }}</p></ion-note>
+
+    <section *ngIf="section === 'overview'">
+      <p class="eyebrow">TABLEAU DE BORD</p>
+      <h1 class="section-title">Bonjour {{ user?.firstname }}, voici votre énergie.</h1>
+      <div class="grid">
+        <ion-card><ion-card-content><p class="muted">Aujourd’hui</p><p class="metric">{{ summary?.todayKwh | number:'1.1-1' }} kWh</p></ion-card-content></ion-card>
+        <ion-card><ion-card-content><p class="muted">Ce mois-ci</p><p class="metric">{{ summary?.monthKwh | number:'1.1-1' }} kWh</p></ion-card-content></ion-card>
+        <ion-card><ion-card-content><p class="muted">Appareils actifs</p><p class="metric">{{ summary?.activeDeviceCount ?? 0 }} / {{ summary?.deviceCount ?? 0 }}</p></ion-card-content></ion-card>
+        <ion-card><ion-card-content><p class="muted">Alertes à consulter</p><p class="metric">{{ summary?.unreadAlerts ?? 0 }}</p></ion-card-content></ion-card>
+      </div>
+      <ion-card>
+        <ion-card-header><ion-card-title>Consommation quotidienne</ion-card-title><ion-card-subtitle>14 derniers jours avec relevés</ion-card-subtitle></ion-card-header>
+        <ion-card-content>
+          <p *ngIf="!dailyTotals.length" class="muted">Ajoutez un relevé pour commencer à suivre votre consommation.</p>
+          <div class="bar-row" *ngFor="let day of dailyTotals">
+            <span>{{ day.date | date:'dd MMM' }}</span>
+            <div class="bar"><span [style.width.%]="barWidth(day.kwh)"></span></div>
+            <strong>{{ day.kwh | number:'1.0-1' }}</strong>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <section *ngIf="section === 'devices'">
+      <h1 class="section-title">Mes appareils</h1>
+      <ion-card>
+        <ion-card-header><ion-card-title>Ajouter un appareil</ion-card-title></ion-card-header>
+        <ion-card-content>
+          <form class="form-grid" (ngSubmit)="addDevice()">
+            <ion-input label="Nom" labelPlacement="stacked" name="deviceName" [(ngModel)]="deviceName" required maxlength="100"></ion-input>
+            <ion-select label="Type" labelPlacement="stacked" name="deviceType" [(ngModel)]="deviceType">
+              <ion-select-option value="Éclairage">Éclairage</ion-select-option>
+              <ion-select-option value="Chauffage">Chauffage</ion-select-option>
+              <ion-select-option value="Électroménager">Électroménager</ion-select-option>
+              <ion-select-option value="Autre">Autre</ion-select-option>
+            </ion-select>
+            <ion-input label="Pièce (facultatif)" labelPlacement="stacked" name="deviceLocation" [(ngModel)]="deviceLocation" maxlength="120"></ion-input>
+            <ion-button type="submit" [disabled]="saving || !deviceName.trim()">Ajouter</ion-button>
+          </form>
+        </ion-card-content>
+      </ion-card>
+      <div class="grid">
+        <ion-card *ngFor="let device of devices">
+          <ion-card-header>
+            <ion-card-title>{{ device.name }}</ion-card-title>
+            <ion-card-subtitle>{{ device.type }} · {{ device.location || 'Sans pièce' }}</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-badge [color]="device.active ? 'success' : 'medium'">{{ device.active ? 'Actif' : 'Inactif' }}</ion-badge>
+            <div class="card-actions">
+              <ion-button fill="outline" size="small" (click)="toggleDevice(device)">{{ device.active ? 'Désactiver' : 'Activer' }}</ion-button>
+              <ion-button fill="clear" color="danger" size="small" (click)="deleteDevice(device)">Supprimer</ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </div>
+      <p *ngIf="!devices.length" class="muted">Aucun appareil enregistré.</p>
+    </section>
+
+    <section *ngIf="section === 'history'">
+      <h1 class="section-title">Suivi de consommation</h1>
+      <ion-card>
+        <ion-card-header><ion-card-title>Enregistrer un relevé</ion-card-title></ion-card-header>
+        <ion-card-content>
+          <form class="form-grid" (ngSubmit)="addReading()">
+            <ion-select label="Appareil" labelPlacement="stacked" name="readingDevice" [(ngModel)]="readingDeviceId" required>
+              <ion-select-option *ngFor="let device of devices" [value]="device.id">{{ device.name }}</ion-select-option>
+            </ion-select>
+            <ion-input type="number" label="Consommation (kWh)" labelPlacement="stacked" name="readingValue"
+              [(ngModel)]="readingValue" min="0" step="0.01" required></ion-input>
+            <ion-button type="submit" [disabled]="saving || readingDeviceId === null">Enregistrer</ion-button>
+          </form>
+        </ion-card-content>
+      </ion-card>
+      <ion-card>
+        <ion-card-header><ion-card-title>Historique récent</ion-card-title></ion-card-header>
+        <ion-card-content>
+          <ion-list *ngIf="readings.length; else noReadings">
+            <ion-item *ngFor="let reading of readings">
+              <ion-label><h2>{{ reading.deviceName }}</h2><p>{{ reading.recordedAt | date:'medium' }}</p></ion-label>
+              <ion-note slot="end">{{ reading.consumptionKwh | number:'1.1-2' }} kWh</ion-note>
+            </ion-item>
+          </ion-list>
+          <ng-template #noReadings><p class="muted">Aucun relevé sur les 30 derniers jours.</p></ng-template>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <section *ngIf="section === 'alerts'">
+      <h1 class="section-title">Historique et alertes</h1>
+      <ion-card *ngFor="let alert of alerts">
+        <ion-card-content class="alert-row">
+          <div>
+            <ion-badge [color]="alert.severity === 'CRITICAL' ? 'danger' : alert.severity === 'WARNING' ? 'warning' : 'primary'">{{ alert.severity }}</ion-badge>
+            <p>{{ alert.message }}</p>
+            <small class="muted">{{ alert.createdAt | date:'medium' }}</small>
+          </div>
+          <ion-button *ngIf="!alert.acknowledged" fill="outline" size="small" (click)="acknowledge(alert)">Marquer comme lue</ion-button>
+          <ion-note *ngIf="alert.acknowledged" color="success">Consultée</ion-note>
+        </ion-card-content>
+      </ion-card>
+      <p *ngIf="!alerts.length" class="muted">Aucune alerte pour le moment.</p>
+    </section>
+
+    <section *ngIf="section === 'insights'">
+      <h1 class="section-title">Prévisions et recommandations</h1>
+      <ion-card>
+        <ion-card-header><ion-card-title>Prévision sur 7 jours</ion-card-title><ion-card-subtitle>Calculée à partir de vos relevés historiques</ion-card-subtitle></ion-card-header>
+        <ion-card-content>
+          <p class="muted">Les prévisions nécessitent au moins un relevé de consommation.</p>
+          <ion-button (click)="runForecast()" [disabled]="saving">Calculer la prévision</ion-button>
+          <ng-container *ngIf="forecast">
+            <p>Moyenne observée : <strong>{{ forecast.daily_average_kwh | number:'1.1-2' }} kWh/jour</strong> · Tendance : <strong>{{ forecast.trend }}</strong></p>
+            <p class="muted">Méthode : {{ forecast.model }}. La prévision est calculée à partir de vos relevés récents.</p>
+            <div class="bar-row" *ngFor="let point of forecast.forecast">
+              <span>{{ point.date | date:'EEE dd MMM' }}</span>
+              <div class="bar"><span [style.width.%]="barWidth(point.kwh)"></span></div>
+              <strong>{{ point.kwh | number:'1.0-1' }}</strong>
+            </div>
+            <h2>Conseils personnalisés</h2>
+            <ion-item *ngFor="let recommendation of forecast.recommendations"><ion-label class="ion-text-wrap">{{ recommendation }}</ion-label></ion-item>
+          </ng-container>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <section *ngIf="section === 'profile'">
+      <h1 class="section-title">Mon profil</h1>
+      <ion-card>
+        <ion-card-content>
+          <form class="profile-form" (ngSubmit)="saveProfile()">
+            <ion-input label="Prénom" labelPlacement="stacked" name="profileFirstname" [(ngModel)]="profileFirstname" required></ion-input>
+            <ion-input label="Nom" labelPlacement="stacked" name="profileLastname" [(ngModel)]="profileLastname" required></ion-input>
+            <ion-input type="email" label="Adresse e-mail" labelPlacement="stacked" name="profileEmail" [(ngModel)]="profileEmail" required></ion-input>
+            <ion-button type="submit" [disabled]="saving">Enregistrer les modifications</ion-button>
+          </form>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <section *ngIf="section === 'admin' && user?.role === 'ADMIN'">
+      <h1 class="section-title">Administration des utilisateurs</h1>
+      <ion-card *ngFor="let account of adminUsers">
+        <ion-card-content class="admin-row">
+          <div><strong>{{ account.firstname }} {{ account.lastname }}</strong><p>{{ account.email }}</p></div>
+          <ion-select [value]="account.role" aria-label="Rôle" [disabled]="account.id === user?.id"
+            (ionChange)="onRoleChange(account, $event)">
+            <ion-select-option value="USER">Utilisateur</ion-select-option>
+            <ion-select-option value="ADMIN">Administrateur</ion-select-option>
+          </ion-select>
+          <ion-button color="danger" fill="clear" (click)="removeUser(account)" [disabled]="account.id === user?.id">Supprimer</ion-button>
+        </ion-card-content>
+      </ion-card>
+    </section>
+  </main>
+</ion-content>
