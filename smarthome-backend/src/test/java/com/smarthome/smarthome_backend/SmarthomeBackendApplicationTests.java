@@ -90,7 +90,10 @@ class SmarthomeBackendApplicationTests {
         mockMvc.perform(get("/api/devices").header("Authorization", "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name").value("Réfrigérateur"));
+                .andExpect(jsonPath("$[0].name").value("Réfrigérateur"))
+                .andExpect(jsonPath("$[0].type").value("Électroménager"))
+                .andExpect(jsonPath("$[0].location").value("Cuisine"))
+                .andExpect(jsonPath("$[0].active").value(true));
         mockMvc.perform(get("/api/devices").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -117,6 +120,40 @@ class SmarthomeBackendApplicationTests {
         mockMvc.perform(get("/api/alerts").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void deviceListShowsItsDetailsAndUpdatedActiveState() throws Exception {
+        String token = register(uniqueEmail());
+        var created = mockMvc.perform(post("/api/devices")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Lampe salon","type":"Éclairage","location":"Salon","active":true}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long deviceId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        mockMvc.perform(put("/api/devices/{id}", deviceId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Lampe salon","type":"Éclairage","location":"Salon","active":false}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Lampe salon"))
+                .andExpect(jsonPath("$.type").value("Éclairage"))
+                .andExpect(jsonPath("$.location").value("Salon"))
+                .andExpect(jsonPath("$.active").value(false));
+
+        mockMvc.perform(get("/api/devices").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Lampe salon"))
+                .andExpect(jsonPath("$[0].type").value("Éclairage"))
+                .andExpect(jsonPath("$[0].location").value("Salon"))
+                .andExpect(jsonPath("$[0].active").value(false));
     }
 
     @Test

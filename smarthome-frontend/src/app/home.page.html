@@ -71,10 +71,16 @@
         <ion-card *ngFor="let device of devices">
           <ion-card-header>
             <ion-card-title>{{ device.name }}</ion-card-title>
-            <ion-card-subtitle>{{ device.type }} · {{ device.location || 'Sans pièce' }}</ion-card-subtitle>
+            <ion-card-subtitle>Détails de l’appareil</ion-card-subtitle>
           </ion-card-header>
           <ion-card-content>
-            <ion-badge [color]="device.active ? 'success' : 'medium'">{{ device.active ? 'Actif' : 'Inactif' }}</ion-badge>
+            <p><strong>Type :</strong> {{ device.type }}</p>
+            <p><strong>Emplacement :</strong> {{ device.location || 'Non renseigné' }}</p>
+            <p><strong>État :</strong>
+              <ion-badge [color]="device.active ? 'success' : 'medium'">
+                {{ device.active ? 'Actif' : 'Inactif' }}
+              </ion-badge>
+            </p>
             <div class="card-actions">
               <ion-button fill="outline" size="small" (click)="toggleDevice(device)">{{ device.active ? 'Désactiver' : 'Activer' }}</ion-button>
               <ion-button fill="clear" color="danger" size="small" (click)="deleteDevice(device)">Supprimer</ion-button>
