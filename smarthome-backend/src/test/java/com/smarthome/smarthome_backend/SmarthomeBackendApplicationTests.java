@@ -157,6 +157,48 @@ class SmarthomeBackendApplicationTests {
     }
 
     @Test
+    void consumptionHistoryCanBeFilteredByPeriod() throws Exception {
+        String token = register(uniqueEmail());
+        var deviceResponse = mockMvc.perform(post("/api/devices")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Compteur","type":"Autre","location":"Maison","active":true}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long deviceId = objectMapper.readTree(deviceResponse.getResponse().getContentAsString())
+                .get("id").asLong();
+        var recent = java.time.LocalDateTime.now().minusDays(5).withNano(0);
+        var older = java.time.LocalDateTime.now().minusDays(45).withNano(0);
+
+        mockMvc.perform(post("/api/devices/{deviceId}/readings", deviceId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"consumptionKwh":2.5,"recordedAt":"%s"}
+                                """.formatted(recent)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/devices/{deviceId}/readings", deviceId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"consumptionKwh":4.0,"recordedAt":"%s"}
+                                """.formatted(older)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/consumption").param("days", "30")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].consumptionKwh").value(2.5));
+        mockMvc.perform(get("/api/consumption").param("days", "90")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
     void updatingEmailReturnsANewTokenAndInvalidatesTheOldSubject() throws Exception {
         String oldEmail = uniqueEmail();
         String token = register(oldEmail);

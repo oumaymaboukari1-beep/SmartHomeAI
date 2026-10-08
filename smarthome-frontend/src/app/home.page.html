@@ -94,6 +94,26 @@
     <section *ngIf="section === 'history'">
       <h1 class="section-title">Suivi de consommation</h1>
       <ion-card>
+        <ion-card-header>
+          <ion-card-title>Consommation sur une période</ion-card-title>
+          <ion-card-subtitle>Choisissez une période pour consulter vos relevés</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-segment [value]="historyDays" (ionChange)="onHistoryPeriodChange($event)">
+            <ion-segment-button [value]="7"><ion-label>7 jours</ion-label></ion-segment-button>
+            <ion-segment-button [value]="30"><ion-label>30 jours</ion-label></ion-segment-button>
+            <ion-segment-button [value]="90"><ion-label>90 jours</ion-label></ion-segment-button>
+            <ion-segment-button [value]="365"><ion-label>12 mois</ion-label></ion-segment-button>
+          </ion-segment>
+          <p *ngIf="!loadingHistory">
+            Total sur {{ historyDays }} jours :
+            <strong>{{ historyTotalKwh | number:'1.1-2' }} kWh</strong>
+            · {{ readings.length }} relevé(s)
+          </p>
+          <p *ngIf="loadingHistory" class="muted">Chargement des relevés…</p>
+        </ion-card-content>
+      </ion-card>
+      <ion-card>
         <ion-card-header><ion-card-title>Enregistrer un relevé</ion-card-title></ion-card-header>
         <ion-card-content>
           <form class="form-grid" (ngSubmit)="addReading()">
@@ -107,7 +127,9 @@
         </ion-card-content>
       </ion-card>
       <ion-card>
-        <ion-card-header><ion-card-title>Historique récent</ion-card-title></ion-card-header>
+        <ion-card-header>
+          <ion-card-title>Historique des {{ historyDays }} derniers jours</ion-card-title>
+        </ion-card-header>
         <ion-card-content>
           <ion-list *ngIf="readings.length; else noReadings">
             <ion-item *ngFor="let reading of readings">
@@ -115,7 +137,7 @@
               <ion-note slot="end">{{ reading.consumptionKwh | number:'1.1-2' }} kWh</ion-note>
             </ion-item>
           </ion-list>
-          <ng-template #noReadings><p class="muted">Aucun relevé sur les 30 derniers jours.</p></ng-template>
+          <ng-template #noReadings><p class="muted">Aucun relevé sur les {{ historyDays }} derniers jours.</p></ng-template>
         </ion-card-content>
       </ion-card>
     </section>

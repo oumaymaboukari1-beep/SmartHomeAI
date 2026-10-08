@@ -32,6 +32,8 @@ export class HomePage implements OnInit {
   successMessage = '';
   saving = false;
   loadingDevices = false;
+  loadingHistory = false;
+  historyDays = 30;
 
   deviceName = '';
   deviceType = 'Autre';
@@ -64,13 +66,7 @@ export class HomePage implements OnInit {
       error: error => this.showError(error),
     });
     this.refreshDevices();
-    this.api.getHistory(30).subscribe({
-      next: value => {
-        this.readings = value;
-        this.buildDailyTotals(value);
-      },
-      error: error => this.showError(error),
-    });
+    this.refreshHistory();
     this.api.getAlerts().subscribe({
       next: value => { this.alerts = value; },
       error: error => this.showError(error),
@@ -106,11 +102,35 @@ export class HomePage implements OnInit {
     });
   }
 
+  refreshHistory(): void {
+    this.loadingHistory = true;
+    this.api.getHistory(this.historyDays).pipe(finalize(() => { this.loadingHistory = false; })).subscribe({
+      next: value => {
+        this.readings = value;
+        this.buildDailyTotals(value);
+      },
+      error: error => this.showError(error),
+    });
+  }
+
+  onHistoryPeriodChange(event: CustomEvent<{ value?: string | number }>): void {
+    const value = Number(event.detail.value);
+    if ([7, 30, 90, 365].includes(value) && value !== this.historyDays) {
+      this.historyDays = value;
+      this.refreshHistory();
+    }
+  }
+
+  get historyTotalKwh(): number {
+    return this.readings.reduce((total, reading) => total + reading.consumptionKwh, 0);
+  }
+
   onSectionChange(event: CustomEvent<{ value?: string | number }>): void {
     const value = event.detail.value;
     if (typeof value === 'string' && (value === 'overview' || value === 'devices' || value === 'history'
       || value === 'alerts' || value === 'insights' || value === 'profile' || value === 'admin')) {
       this.navigate(value);
+      if (value === 'history') this.refreshHistory();
     }
   }
 
